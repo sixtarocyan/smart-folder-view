@@ -1000,7 +1000,7 @@ class SmartFolderView extends obsidian.ItemView {
   renderCard(parent, file, cache, profile, color, showDot) {
     const card = parent.createEl('section');
     card.addClass('sfv-card');
-    obsidian.setCssProps(card, { '--sfv-color': color });
+    card.setCssProps({ '--sfv-color': color });
 
     if (showDot) {
       card.createEl('span').addClass('sfv-card-dot');
@@ -1470,7 +1470,7 @@ class SmartFolderView extends obsidian.ItemView {
         const cards = Array.from(timelineEl.querySelectorAll('section[data-sfv-path]')).filter(el => !el.classList.contains('sfv-dragging'));
         if (!cards.length) {
           dropBeforePath = null;
-          obsidian.setCssProps(indicator, { '--sfv-top': '0px' });
+          indicator.setCssProps({ '--sfv-top': '0px' });
           indicator.addClass('sfv-visible');
           return;
         }
@@ -1490,7 +1490,7 @@ class SmartFolderView extends obsidian.ItemView {
           const last = cards[cards.length - 1];
           top = last.offsetTop + last.offsetHeight - 2;
         }
-        obsidian.setCssProps(indicator, { '--sfv-top': `${Math.max(0, top)}px` });
+        indicator.setCssProps({ '--sfv-top': `${Math.max(0, top)}px` });
         indicator.addClass('sfv-visible');
       };
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as obsidian from 'obsidian';
 
 const VIEW_TYPE = 'smart-folder-view';

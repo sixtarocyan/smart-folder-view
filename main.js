@@ -156,11 +156,11 @@ var I18N = {
   },
   en: {
     title: "Smart Folder View",
-    openBuilder: "Create Smart Folder Page",
-    openManager: "Manage Saved Pages",
-    openLast: "Open Last Page",
+    openBuilder: "Create Smart Folder page",
+    openManager: "Manage saved pages",
+    openLast: "Open last page",
     noProfile: "No saved pages yet. Please create one first.",
-    setupTitle: "Configure Page",
+    setupTitle: "Configure page",
     setupDesc: "Page settings anchor data source: folder, template file, and filterable fields. Preview first, then save.",
     profileName: "Page name",
     sourceFolder: "Source folder",
@@ -181,19 +181,19 @@ var I18N = {
     board: "Board",
     asc: "Ascending (old -> new)",
     desc: "Descending (new -> old)",
-    savePage: "Save Page",
-    updatePage: "Update Page",
-    openBuilderBtn: "Create Page",
-    openManagerBtn: "Page Manager",
+    savePage: "Save page",
+    updatePage: "Update page",
+    openBuilderBtn: "Create page",
+    openManagerBtn: "Page manager",
     startActionTitle: "Smart Folder",
     startActionDesc: "Choose an action:",
-    startOpenPage: "Open Page",
-    startNewPage: "Create Page",
+    startOpenPage: "Open page",
+    startNewPage: "Create page",
     pageSaved: "Page saved",
     pageUpdated: "Page updated",
     saveFailed: "Failed to save page",
     pageNamePrompt: "Enter page name",
-    managerTitle: "Saved Pages",
+    managerTitle: "Saved pages",
     open: "Open",
     edit: "Edit",
     delete: "Delete",
@@ -281,7 +281,7 @@ function detectLanguage() {
   try {
     const locale = window.moment?.locale?.() || "";
     if (locale.toLowerCase().startsWith("zh")) return "zh";
-  } catch (_e) {
+  } catch {
   }
   return "en";
 }
@@ -720,7 +720,7 @@ var ProfileManagerModal = class extends obsidian.Modal {
     contentEl.createEl("h2", { text: this.plugin.t("managerTitle") });
     for (const profile of this.plugin.data.profiles) {
       const s = new obsidian.Setting(contentEl).setName(profile.name || profile.sourceFolder).setDesc(profile.sourceFolder);
-      s.addButton((b) => b.setButtonText(this.plugin.t("open")).onClick(async () => {
+      s.addButton((b) => b.setButtonText(this.plugin.t("open")).onClick(() => {
         void (async () => {
           this.plugin.clearDraftProfile();
           this.plugin.data.lastActiveProfileId = profile.id;
@@ -891,7 +891,7 @@ var SmartFolderView = class extends obsidian.ItemView {
   async rerenderPreserveScroll() {
     const container = this.containerEl.children[1];
     const scrollTop = container?.scrollTop || 0;
-    await this.renderView();
+    this.renderView();
     const nextContainer = this.containerEl.children[1];
     await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
     if (nextContainer) nextContainer.scrollTop = scrollTop;
@@ -1014,7 +1014,7 @@ var SmartFolderView = class extends obsidian.ItemView {
       e.preventDefault();
       this.app.workspace.openLinkText(href, file.path, e.ctrlKey || e.metaKey);
     }, true);
-    this.app.vault.read(file).then((raw) => {
+    void this.app.vault.read(file).then((raw) => {
       const body = stripFrontmatter(raw) || "\uFF08\u65E0\u6B63\u6587\uFF09";
       obsidian.MarkdownRenderer.render(this.app, body, bodyEl, file.path, this);
     }).catch(() => bodyEl.setText("\uFF08\u6B63\u6587\u8BFB\u53D6\u5931\u8D25\uFF09"));
@@ -1124,13 +1124,15 @@ var SmartFolderView = class extends obsidian.ItemView {
     topBar.addClass("sfv-top-bar");
     const saveBtn = topBar.createEl("button", { text: this.plugin.isDraft(profile.id) ? this.plugin.t("savePage") : this.plugin.t("updatePage") });
     saveBtn.addClass("mod-cta");
-    saveBtn.addEventListener("click", async () => {
-      try {
-        await this.plugin.saveProfile(profile, true, false);
-        await this.rerenderPreserveScroll();
-      } catch {
-        new obsidian.Notice(this.plugin.t("saveFailed"));
-      }
+    saveBtn.addEventListener("click", () => {
+      void (async () => {
+        try {
+          await this.plugin.saveProfile(profile, true, false);
+          await this.rerenderPreserveScroll();
+        } catch {
+          new obsidian.Notice(this.plugin.t("saveFailed"));
+        }
+      })();
     });
     topBar.createEl("button", { text: this.plugin.t("openBuilderBtn") }).addEventListener("click", () => new SetupModal(this.app, this.plugin).open());
     topBar.createEl("button", { text: this.plugin.t("openManagerBtn") }).addEventListener("click", () => new ProfileManagerModal(this.app, this.plugin).open());
@@ -1331,14 +1333,16 @@ var SmartFolderView = class extends obsidian.ItemView {
         this.saveOrder(profile.id, this.orderKey(profile), ordered.map((e) => e.file));
         new obsidian.Notice(this.plugin.t("saveOrderDone"));
       });
-      orderActions2.createEl("button", { text: this.plugin.t("resetOrder") }).addEventListener("click", async () => {
-        this.recordUndoSnapshot(profile);
-        this.clearOrder(profile.id, this.orderKey(profile));
-        new obsidian.Notice(this.plugin.t("resetOrderDone"));
-        await this.rerenderPreserveScroll();
+      orderActions2.createEl("button", { text: this.plugin.t("resetOrder") }).addEventListener("click", () => {
+        void (async () => {
+          this.recordUndoSnapshot(profile);
+          this.clearOrder(profile.id, this.orderKey(profile));
+          new obsidian.Notice(this.plugin.t("resetOrderDone"));
+          await this.rerenderPreserveScroll();
+        })();
       });
-      orderActions2.createEl("button", { text: this.plugin.t("undoLastAction") }).addEventListener("click", async () => {
-        await this.undoLastAction(profile);
+      orderActions2.createEl("button", { text: this.plugin.t("undoLastAction") }).addEventListener("click", () => {
+        void this.undoLastAction(profile);
       });
       const timelineEl = container.createEl("div");
       timelineEl.addClass("sfv-timeline");
@@ -1495,14 +1499,14 @@ var SmartFolderView = class extends obsidian.ItemView {
       }
       new obsidian.Notice(this.plugin.t("saveOrderDone"));
     });
-    orderActions.createEl("button", { text: this.plugin.t("resetOrder") }).addEventListener("click", async () => {
+    orderActions.createEl("button", { text: this.plugin.t("resetOrder") }).addEventListener("click", () => {
       this.recordUndoSnapshot(profile);
       for (const col of columns) this.clearOrder(profile.id, this.orderKey(profile, col));
       new obsidian.Notice(this.plugin.t("resetOrderDone"));
-      await this.renderView();
+      this.renderView();
     });
-    orderActions.createEl("button", { text: this.plugin.t("undoLastAction") }).addEventListener("click", async () => {
-      await this.undoLastAction(profile);
+    orderActions.createEl("button", { text: this.plugin.t("undoLastAction") }).addEventListener("click", () => {
+      void this.undoLastAction(profile);
     });
     const boardEl = container.createEl("div");
     boardEl.addClass("sfv-board");
@@ -1845,7 +1849,7 @@ var SmartFolderPlugin = class extends obsidian.Plugin {
   async onload() {
     await this.loadPluginData();
     this.registerView(VIEW_TYPE, (leaf) => new SmartFolderView(leaf, this));
-    this.registerMarkdownCodeBlockProcessor("smart-folder-page", async (source, el) => {
+    this.registerMarkdownCodeBlockProcessor("smart-folder-page", (source, el) => {
       el.empty();
       let raw;
       try {
@@ -1939,7 +1943,7 @@ var SmartFolderPlugin = class extends obsidian.Plugin {
       leaf = workspace.getLeaf("tab");
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
-    workspace.revealLeaf(leaf);
+    void workspace.revealLeaf(leaf);
     const view = leaf.view;
     if (view instanceof SmartFolderView) {
       view.setPinnedProfile(profile || null);
@@ -1947,7 +1951,7 @@ var SmartFolderPlugin = class extends obsidian.Plugin {
         this.data.lastActiveProfileId = profile.id;
         await this.persist();
       }
-      await view.onOpen();
+      view.onOpen();
     }
   }
   onunload() {

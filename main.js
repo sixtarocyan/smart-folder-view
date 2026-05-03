@@ -369,72 +369,8 @@ function cloneSelectedByAttr(state) {
   return JSON.parse(JSON.stringify(state || {}));
 }
 function makeSelectSearchable(selectEl, placeholder) {
-  const host = selectEl?.parentElement;
-  if (!host || selectEl.dataset.searchable === "1") return;
-  selectEl.dataset.searchable = "1";
-  selectEl.addClass("sfv-hidden");
-  const box = host.createEl("details");
-  box.addClass("sfv-sel-host");
-  const summary = box.createEl("summary");
-  summary.addClass("sfv-sel-summary");
-  const summaryText = summary.createEl("span");
-  const panel = box.createEl("div");
-  panel.addClass("sfv-sel-panel");
-  const input = panel.createEl("input");
-  input.type = "search";
-  input.placeholder = placeholder;
-  input.addClass("sfv-sel-input");
-  const list = panel.createEl("div");
-  const rows = [];
-  const optionTexts = Array.from(selectEl.options).map((opt) => opt.textContent || "");
-  const meter = document.createElement("span");
-  meter.classList.add("sfv-sel-meter");
-  document.body.appendChild(meter);
-  let maxTextWidth = 0;
-  for (const text of optionTexts) {
-    meter.textContent = text;
-    maxTextWidth = Math.max(maxTextWidth, meter.getBoundingClientRect().width);
-  }
-  meter.remove();
-  const fixedWidth = Math.max(170, Math.ceil(maxTextWidth) + 44);
-  const clampedWidth = Math.min(fixedWidth, 340);
-  obsidian.setCssProps(box, { "--sfv-sel-max-width": `${clampedWidth}px` });
-  obsidian.setCssProps(panel, { "--sfv-sel-min-width": `${Math.min(clampedWidth, 260)}px`, "--sfv-sel-max-width": `${clampedWidth}px` });
-  for (const opt of Array.from(selectEl.options)) {
-    const row = list.createEl("button", { text: opt.textContent || "" });
-    row.type = "button";
-    row.addClass("sfv-sel-row");
-    row.addEventListener("click", () => {
-      selectEl.value = opt.value;
-      selectEl.dispatchEvent(new Event("change"));
-      box.removeAttribute("open");
-    });
-    rows.push({ text: (opt.textContent || "").toLowerCase(), row });
-  }
-  const refreshSummary = () => {
-    const selected = selectEl.selectedOptions[0];
-    summaryText.setText(selected?.textContent || "");
-    summaryText.addClass("sfv-sel-summary-text");
-  };
-  input.addEventListener("input", () => {
-    const q = input.value.trim().toLowerCase();
-    for (const { text, row } of rows) {
-      if (!q || text.includes(q)) row.removeClass("sfv-hidden");
-      else row.addClass("sfv-hidden");
-    }
-  });
-  box.addEventListener("toggle", () => {
-    if (box.open) {
-      box.addClass("sfv-elevated");
-      input.value = "";
-      for (const { row } of rows) row.removeClass("sfv-hidden");
-      window.setTimeout(() => input.focus(), 0);
-    } else {
-      box.removeClass("sfv-elevated");
-    }
-  });
-  selectEl.addEventListener("change", refreshSummary);
-  refreshSummary();
+  void selectEl;
+  void placeholder;
 }
 var SetupModal = class extends obsidian.Modal {
   constructor(app, plugin, profile) {

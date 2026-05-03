@@ -54,10 +54,24 @@ After approval and publication, install Smart Folder View from Obsidian's Commun
 
 ## Development Notes
 
-- Runtime entry: `main.js`
+- Source entry: `src/main.ts`
+- Build output: `main.js`
 - Release metadata: `manifest.json`
 - Version compatibility map: `versions.json`
 - Local state file: `data.json` (not a release asset)
+
+### Build
+
+```bash
+npm install
+npm run build
+```
+
+### Watch mode
+
+```bash
+npm run dev
+```
 
 ## Release Checklist
 

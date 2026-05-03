@@ -1,0 +1,10 @@
+{
+  "id": "smart-folder-view",
+  "name": "Smart Folder View",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Interactive folder dashboard with timeline and board views, filters, drag sorting, and saved page presets",
+  "author": "cyanwang",
+  "authorUrl": "https://github.com/sixtarocyan",
+  "isDesktopOnly": false
+}

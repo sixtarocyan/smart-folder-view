@@ -262,7 +262,9 @@ function detectLanguage() {
   try {
     const locale = window.moment?.locale?.() || '';
     if (locale.toLowerCase().startsWith('zh')) return 'zh';
-  } catch {}
+  } catch (_e) {
+    // ignore
+  }
   return 'en';
 }
 
@@ -368,26 +370,26 @@ function makeSelectSearchable(selectEl, placeholder) {
   if (!host || selectEl.dataset.searchable === '1') return;
   selectEl.dataset.searchable = '1';
 
-  selectEl.style.display = 'none';
+  selectEl.addClass('sfv-hidden');
   const box = host.createEl('details');
-  box.style.cssText = 'position:relative;display:block;z-index:1;';
+  box.addClass('sfv-sel-host');
   const summary = box.createEl('summary');
-  summary.style.cssText = 'list-style:none;cursor:pointer;min-height:30px;padding:5px 10px;border-radius:8px;border:1px solid var(--background-modifier-border);';
+  summary.addClass('sfv-sel-summary');
   const summaryText = summary.createEl('span');
 
   const panel = box.createEl('div');
-  panel.style.cssText = 'position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;max-height:220px;overflow:auto;padding:8px;border-radius:10px;border:1px solid var(--background-modifier-border);background:var(--background-primary);';
+  panel.addClass('sfv-sel-panel');
 
   const input = panel.createEl('input');
   input.type = 'search';
   input.placeholder = placeholder;
-  input.style.cssText = 'width:100%;height:28px;padding:2px 8px;border-radius:8px;border:1px solid var(--background-modifier-border);margin-bottom:6px;';
+  input.addClass('sfv-sel-input');
 
   const list = panel.createEl('div');
   const rows = [];
   const optionTexts = Array.from(selectEl.options).map(opt => opt.textContent || '');
   const meter = document.createElement('span');
-  meter.style.cssText = 'position:fixed;visibility:hidden;white-space:nowrap;font:var(--font-ui-medium);';
+  meter.classList.add('sfv-sel-meter');
   document.body.appendChild(meter);
   let maxTextWidth = 0;
   for (const text of optionTexts) {
@@ -397,17 +399,14 @@ function makeSelectSearchable(selectEl, placeholder) {
   meter.remove();
   const fixedWidth = Math.max(170, Math.ceil(maxTextWidth) + 44);
   const clampedWidth = Math.min(fixedWidth, 340);
-  box.style.width = '100%';
-  box.style.maxWidth = `${clampedWidth}px`;
-  panel.style.minWidth = `${Math.min(clampedWidth, 260)}px`;
-  panel.style.maxWidth = `${clampedWidth}px`;
+  obsidian.setCssProps(box, { '--sfv-sel-max-width': `${clampedWidth}px` });
+  obsidian.setCssProps(panel, { '--sfv-sel-min-width': `${Math.min(clampedWidth, 260)}px`, '--sfv-sel-max-width': `${clampedWidth}px` });
 
   for (const opt of Array.from(selectEl.options)) {
     const row = list.createEl('button', { text: opt.textContent || '' });
     row.type = 'button';
-    row.style.cssText = 'all:unset;display:block;width:100%;box-sizing:border-box;text-align:left;padding:5px 8px;cursor:pointer;border-radius:6px;';
-    row.addEventListener('mouseenter', () => row.style.background = 'var(--background-modifier-hover)');
-    row.addEventListener('mouseleave', () => row.style.background = 'transparent');
+    row.addClass('sfv-sel-row');
+    // hover handled via CSS .sfv-sel-row:hover
     row.addEventListener('click', () => {
       selectEl.value = opt.value;
       selectEl.dispatchEvent(new Event('change'));
@@ -419,24 +418,24 @@ function makeSelectSearchable(selectEl, placeholder) {
   const refreshSummary = () => {
     const selected = selectEl.selectedOptions[0];
     summaryText.setText(selected?.textContent || '');
-    summaryText.style.cssText = 'display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
+    summaryText.addClass('sfv-sel-summary-text');
   };
 
   input.addEventListener('input', () => {
     const q = input.value.trim().toLowerCase();
     for (const { text, row } of rows) {
-      row.style.display = !q || text.includes(q) ? 'block' : 'none';
+      if (!q || text.includes(q)) row.removeClass('sfv-hidden'); else row.addClass('sfv-hidden');
     }
   });
 
   box.addEventListener('toggle', () => {
     if (box.open) {
-      box.style.zIndex = '160';
+      box.addClass('sfv-elevated');
       input.value = '';
-      for (const { row } of rows) row.style.display = 'block';
+      for (const { row } of rows) row.removeClass('sfv-hidden');
       window.setTimeout(() => input.focus(), 0);
     } else {
-      box.style.zIndex = '1';
+      box.removeClass('sfv-elevated');
     }
   });
 
@@ -581,32 +580,36 @@ class SetupModal extends obsidian.Modal {
       });
 
     const action = contentEl.createEl('div');
-    action.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:10px;';
+    action.addClass('sfv-setup-action');
 
-    action.createEl('button', { text: this.plugin.t('preview') }).addEventListener('click', async () => {
+    action.createEl('button', { text: this.plugin.t('preview') }).addEventListener('click', () => {
       this.plugin.setDraftProfile(this.draft);
-      await this.plugin.activateView();
+      void this.plugin.activateView();
       this.hasPreviewedDraft = true;
     });
 
     const saveBtn = action.createEl('button', { text: this.plugin.t('saveAndOpen') });
     saveBtn.addClass('mod-cta');
-    saveBtn.addEventListener('click', async () => {
-      await this.plugin.saveProfile(this.draft, true, false);
-      await this.plugin.activateView({ profile: this.draft });
-      this.skipCloseSavePrompt = true;
-      this.close();
+    saveBtn.addEventListener('click', () => {
+      void (async () => {
+        await this.plugin.saveProfile(this.draft, true, false);
+        await this.plugin.activateView({ profile: this.draft });
+        this.skipCloseSavePrompt = true;
+        this.close();
+      })();
     });
   }
 
   onOpen() { this.render(); }
-  async onClose() {
+  onClose() {
     this.contentEl.empty();
-    if (this.skipCloseSavePrompt) return;
-    if (!this.hasPreviewedDraft) return;
-    if (!window.confirm(this.plugin.t('savePreviewOnClose'))) return;
-    await this.plugin.saveProfile(this.draft, true, false);
-    await this.plugin.activateView({ profile: this.draft });
+    if (this.skipCloseSavePrompt || !this.hasPreviewedDraft) return;
+    void askConfirm(this.app, this.plugin.t('savePreviewOnClose')).then(ok => {
+      if (!ok) return;
+      void this.plugin.saveProfile(this.draft, true, false).then(() =>
+        void this.plugin.activateView({ profile: this.draft })
+      );
+    });
   }
 }
 
@@ -624,16 +627,16 @@ class TextInputModal extends obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl('h3', { text: this.titleText });
-    if (this.hintText) contentEl.createEl('p', { text: this.hintText }).style.cssText = 'margin:6px 0;color:var(--text-muted);font-size:0.9em;';
+    if (this.hintText) contentEl.createEl('p', { text: this.hintText }).addClass('sfv-modal-hint');
 
     const input = contentEl.createEl('input');
     input.type = 'text';
     input.placeholder = this.placeholderText;
     input.value = this.initialValue;
-    input.style.cssText = 'width:100%;margin-top:6px;';
+    input.addClass('sfv-modal-input');
 
     const action = contentEl.createEl('div');
-    action.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;';
+    action.addClass('sfv-modal-action');
     action.createEl('button', { text: 'Cancel' }).addEventListener('click', () => {
       this.onSubmitValue(null);
       this.close();
@@ -680,10 +683,10 @@ class ThreeChoiceModal extends obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl('h3', { text: this.titleText });
-    contentEl.createEl('p', { text: this.messageText }).style.cssText = 'margin:6px 0 10px;color:var(--text-muted);font-size:0.9em;';
+    contentEl.createEl('p', { text: this.messageText }).addClass('sfv-modal-hint');
 
     const action = contentEl.createEl('div');
-    action.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;';
+    action.addClass('sfv-modal-action');
 
     const addChoice = (key, label, isCta = false) => {
       if (!label) return;
@@ -722,9 +725,9 @@ class StartActionModal extends obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl('h3', { text: this.plugin.t('startActionTitle') });
-    contentEl.createEl('p', { text: this.plugin.t('startActionDesc') }).style.cssText = 'margin:6px 0 10px;color:var(--text-muted);font-size:0.9em;';
+    contentEl.createEl('p', { text: this.plugin.t('startActionDesc') }).addClass('sfv-modal-hint');
     const action = contentEl.createEl('div');
-    action.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+    action.addClass('sfv-modal-action');
     action.createEl('button', { text: this.plugin.t('startOpenPage') }).addEventListener('click', () => {
       this.onSubmitValue('open');
       this.close();
@@ -761,10 +764,10 @@ class FolderSelectModal extends obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl('h3', { text: this.plugin.t('exportFolderTitle') });
-    contentEl.createEl('p', { text: this.plugin.t('exportFolderDesc') }).style.cssText = 'margin:6px 0 10px;color:var(--text-muted);font-size:0.9em;';
+    contentEl.createEl('p', { text: this.plugin.t('exportFolderDesc') }).addClass('sfv-modal-hint');
 
     const select = contentEl.createEl('select');
-    select.style.cssText = 'width:100%;';
+    select.addClass('sfv-modal-select');
     for (const f of this.folders) {
       select.createEl('option', { value: f, text: f || this.plugin.t('rootFolder') });
     }
@@ -772,7 +775,7 @@ class FolderSelectModal extends obsidian.Modal {
     makeSelectSearchable(select, this.plugin.t('search'));
 
     const action = contentEl.createEl('div');
-    action.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;';
+    action.addClass('sfv-modal-action');
     action.createEl('button', { text: 'Cancel' }).addEventListener('click', () => {
       this.onSubmitValue(null);
       this.close();
@@ -796,6 +799,33 @@ function askFolderSelect(app, plugin, folders, initialValue) {
   });
 }
 
+
+class ConfirmModal extends obsidian.Modal {
+  constructor(app, message, onResult) {
+    super(app);
+    this.message = message;
+    this.onResultValue = onResult;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl('p', { text: this.message });
+    const action = contentEl.createEl('div');
+    action.addClass('sfv-modal-action');
+    action.createEl('button', { text: 'Cancel' }).addEventListener('click', () => {
+      this.onResultValue(false); this.close();
+    });
+    const ok = action.createEl('button', { text: 'OK' });
+    ok.addClass('mod-cta');
+    ok.addEventListener('click', () => { this.onResultValue(true); this.close(); });
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
+function askConfirm(app, message) {
+  return new Promise(resolve => { new ConfirmModal(app, message, resolve).open(); });
+}
+
 class ProfileManagerModal extends obsidian.Modal {
   constructor(app, plugin) {
     super(app);
@@ -810,21 +840,25 @@ class ProfileManagerModal extends obsidian.Modal {
     for (const profile of this.plugin.data.profiles) {
       const s = new obsidian.Setting(contentEl).setName(profile.name || profile.sourceFolder).setDesc(profile.sourceFolder);
       s.addButton(b => b.setButtonText(this.plugin.t('open')).onClick(async () => {
-        this.plugin.clearDraftProfile();
-        this.plugin.data.lastActiveProfileId = profile.id;
-        await this.plugin.persist();
-        await this.plugin.activateView({ profile, newLeaf: true });
-        this.close();
+        void (async () => {
+          this.plugin.clearDraftProfile();
+          this.plugin.data.lastActiveProfileId = profile.id;
+          await this.plugin.persist();
+          await this.plugin.activateView({ profile, newLeaf: true });
+          this.close();
+        })();
       }));
       s.addButton(b => b.setButtonText(this.plugin.t('edit')).onClick(() => {
         new SetupModal(this.app, this.plugin, profile).open();
       }));
-      s.addButton(b => b.setButtonText(this.plugin.t('delete')).onClick(async () => {
-        if (!window.confirm(this.plugin.t('deleteConfirm', { name: profile.name || profile.sourceFolder }))) return;
-        this.plugin.data.profiles = this.plugin.data.profiles.filter(p => p.id !== profile.id);
-        if (this.plugin.data.lastActiveProfileId === profile.id) this.plugin.data.lastActiveProfileId = '';
-        await this.plugin.persist();
-        this.onOpen();
+      s.addButton(b => b.setButtonText(this.plugin.t('delete')).onClick(() => {
+        void askConfirm(this.app, this.plugin.t('deleteConfirm', { name: profile.name || profile.sourceFolder })).then(async confirmed => {
+          if (!confirmed) return;
+          this.plugin.data.profiles = this.plugin.data.profiles.filter(p => p.id !== profile.id);
+          if (this.plugin.data.lastActiveProfileId === profile.id) this.plugin.data.lastActiveProfileId = '';
+          await this.plugin.persist();
+          this.onOpen();
+        });
       }));
     }
   }
@@ -884,7 +918,7 @@ class SmartFolderView extends obsidian.ItemView {
     this.stateOwnerId = ownerId;
     this.profileDefaultsKey = nextDefaultsKey;
     try {
-      const saved = JSON.parse(localStorage.getItem(FILTER_STORAGE_PREFIX + ownerId) || '{}');
+      const saved = (this.app.loadLocalStorage(FILTER_STORAGE_PREFIX + ownerId) as Record<string, unknown>) || {};
       this.isFreshFilterState = !saved || Object.keys(saved).length === 0;
       const savedDefaultsKey = typeof saved.profileDefaultsKey === 'string' ? saved.profileDefaultsKey : '';
       const defaultsChanged = !!savedDefaultsKey && savedDefaultsKey !== this.profileDefaultsKey;
@@ -902,22 +936,22 @@ class SmartFolderView extends obsidian.ItemView {
   }
 
   saveState() {
-    localStorage.setItem(FILTER_STORAGE_PREFIX + this.stateOwnerId, JSON.stringify({
+    this.app.saveLocalStorage(FILTER_STORAGE_PREFIX + this.stateOwnerId, {
       ...this.filterState,
       profileDefaultsKey: this.profileDefaultsKey,
-    }));
+    });
   }
 
   loadPresets() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(FILTER_PRESET_STORAGE_PREFIX + this.stateOwnerId) || '[]');
+      const parsed = this.app.loadLocalStorage(FILTER_PRESET_STORAGE_PREFIX + this.stateOwnerId);
       if (!Array.isArray(parsed)) return [];
       return clonePresetList(parsed);
     } catch { return []; }
   }
 
   savePresets(presets) {
-    localStorage.setItem(FILTER_PRESET_STORAGE_PREFIX + this.stateOwnerId, JSON.stringify(clonePresetList(presets)));
+    this.app.saveLocalStorage(FILTER_PRESET_STORAGE_PREFIX + this.stateOwnerId, clonePresetList(presets));
   }
 
   contextKey(profile) {
@@ -930,13 +964,13 @@ class SmartFolderView extends obsidian.ItemView {
 
   loadOrderStore(ownerId) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(MANUAL_ORDER_STORAGE_PREFIX + ownerId) || '{}');
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed = this.app.loadLocalStorage(MANUAL_ORDER_STORAGE_PREFIX + ownerId);
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed as Record<string, string[]> : {};
     } catch { return {}; }
   }
 
   saveOrderStore(ownerId, store) {
-    localStorage.setItem(MANUAL_ORDER_STORAGE_PREFIX + ownerId, JSON.stringify(store));
+    this.app.saveLocalStorage(MANUAL_ORDER_STORAGE_PREFIX + ownerId, store);
   }
 
   applyOrder(ownerId, key, items) {
@@ -980,8 +1014,8 @@ class SmartFolderView extends obsidian.ItemView {
     new obsidian.Notice(this.plugin.t('undoDone'));
   }
 
-  async onOpen() {
-    await this.renderView();
+  onOpen() {
+    this.renderView();
   }
 
   async rerenderPreserveScroll() {
@@ -996,8 +1030,8 @@ class SmartFolderView extends obsidian.ItemView {
 
   async askAndMaybeUpdateField(file, field, targetColumn, unsetLabel) {
     const suggested = targetColumn === unsetLabel ? '' : targetColumn;
-    const useSuggested = window.confirm(this.plugin.t('moveAsk', { field, value: suggested || this.plugin.t('emptyValue') }));
-    const finalValue = useSuggested ? suggested : window.prompt(this.plugin.t('moveManual', { field }), suggested);
+    const useSuggested = await askConfirm(this.app, this.plugin.t('moveAsk', { field, value: suggested || this.plugin.t('emptyValue') }));
+    const finalValue = useSuggested ? suggested : await askTextInput(this.app, this.plugin.t('moveManual', { field }), this.plugin.t('moveManual', { field }), suggested, '');
     if (finalValue == null) return undefined;
     const value = finalValue.trim();
     try {
@@ -1036,25 +1070,26 @@ class SmartFolderView extends obsidian.ItemView {
 
   renderCard(parent, file, cache, profile, color, showDot) {
     const card = parent.createEl('section');
-    card.style.cssText = `position:relative;margin:0 0 12px;padding:12px 14px;border:1px solid var(--background-modifier-border);border-left:4px solid ${color};border-radius:12px;background:color-mix(in srgb, ${color} 9%, var(--background-primary) 91%);`;
+    card.addClass('sfv-card');
+    obsidian.setCssProps(card, { '--sfv-color': color });
 
     if (showDot) {
-      card.createEl('span').style.cssText = `position:absolute;left:-26px;top:17px;width:12px;height:12px;border-radius:50%;background:${color};border:2px solid var(--background-primary);`;
+      card.createEl('span').addClass('sfv-card-dot');
     }
 
     const top = card.createEl('div');
-    top.style.cssText = 'display:flex;align-items:center;gap:10px;overflow:hidden;margin-bottom:5px;';
+    top.addClass('sfv-card-top');
 
     const meta = top.createEl('span');
     meta.setText(profile.displayFields.map(k => `${k}: ${getFrontmatterValues(cache, k).join('、') || '-'}`).join(' | '));
-    meta.style.cssText = 'font-size:0.85em;color:var(--text-muted);white-space:nowrap;overflow-x:auto;flex:1 1 auto;min-width:100px;';
+    meta.addClass('sfv-card-meta');
 
     const link = top.createEl('a');
     link.setText(file.basename);
     link.className = 'internal-link';
     link.setAttribute('data-href', file.path);
     link.setAttribute('href', file.path);
-    link.style.cssText = 'font-size:1em;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 220px;min-width:80px;';
+    link.addClass('sfv-card-link');
     const triggerHoverPreview = (e) => {
       this.app.workspace?.trigger?.('hover-link', {
         event: e,
@@ -1094,7 +1129,7 @@ class SmartFolderView extends obsidian.ItemView {
 
     const bodyEl = card.createEl('div');
     bodyEl.addClass('sfv-card-body');
-    bodyEl.style.cssText = 'max-height:calc(var(--line-height-normal) * 1em * 3);overflow-y:auto;overflow-x:hidden;padding-right:4px;';
+    // sfv-card-body styles are in styles.css
     bodyEl.addEventListener('mouseover', (e) => {
       const el = getInternalLinkElement(e.target);
       if (!el) return;
@@ -1131,17 +1166,17 @@ class SmartFolderView extends obsidian.ItemView {
 
   buildDropdown(container, label, options, selectedValues, onChange, onCommit) {
     const wrap = container.createEl('div');
-    wrap.style.cssText = 'display:flex;align-items:flex-start;gap:8px;flex:1 1 420px;min-width:320px;max-width:420px;position:relative;z-index:1;';
-    wrap.createEl('span', { text: label }).style.cssText = 'font-size:1em;color:var(--text-normal);min-width:72px;padding-top:8px;white-space:nowrap;';
+    wrap.addClass('sfv-dd-wrap');
+    wrap.createEl('span', { text: label }).addClass('sfv-dd-label');
 
     const box = wrap.createEl('details');
-    box.style.cssText = 'flex:1;position:relative;z-index:1;min-width:0;';
+    box.addClass('sfv-dd-box');
     const summary = box.createEl('summary');
-    summary.style.cssText = 'list-style:none;cursor:pointer;height:36px;padding:7px 34px 7px 12px;border-radius:10px;border:1px solid var(--background-modifier-border);font-size:1em;box-sizing:border-box;overflow:hidden;';
+    summary.addClass('sfv-dd-summary');
     const initialValues = [...selectedValues];
     let currentValues = [...initialValues];
     const summarySpan = summary.createEl('span');
-    summarySpan.style.cssText = 'color:var(--text-normal);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    summarySpan.addClass('sfv-dd-summary-text');
     const toDisplayText = (v) => v === EMPTY_OPTION_VALUE ? this.plugin.t('emptyValue') : v;
     const refreshSummary = () => {
       const isAll = currentValues.length === options.length && options.length > 0;
@@ -1159,13 +1194,13 @@ class SmartFolderView extends obsidian.ItemView {
     refreshSummary();
 
     const panel = box.createEl('div');
-    panel.style.cssText = 'position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;max-height:260px;overflow:auto;padding:8px;border-radius:10px;border:1px solid var(--background-modifier-border);background:var(--background-primary);';
+    panel.addClass('sfv-dd-panel');
 
     const actionBar = panel.createEl('div');
-    actionBar.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:4px;';
+    actionBar.addClass('sfv-dd-action-bar');
 
     const allBtn = actionBar.createEl('button', { text: this.plugin.t('selectAll') });
-    allBtn.style.cssText = 'border:none;background:transparent;color:var(--interactive-accent);cursor:pointer;';
+    allBtn.addClass('sfv-dd-action-btn');
     allBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1179,7 +1214,7 @@ class SmartFolderView extends obsidian.ItemView {
     });
 
     const clearBtn = actionBar.createEl('button', { text: this.plugin.t('selectNone') });
-    clearBtn.style.cssText = 'border:none;background:transparent;color:var(--interactive-accent);cursor:pointer;';
+    clearBtn.addClass('sfv-dd-action-btn');
     clearBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1195,13 +1230,13 @@ class SmartFolderView extends obsidian.ItemView {
     const search = panel.createEl('input');
     search.type = 'search';
     search.placeholder = this.plugin.t('search');
-    search.style.cssText = 'width:100%;height:32px;padding:4px 8px;border-radius:8px;border:1px solid var(--background-modifier-border);margin:6px 0;';
+    search.addClass('sfv-dd-search');
 
     const list = panel.createEl('div');
     const rows = [];
     for (const option of options) {
       const row = list.createEl('label');
-      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px;font-size:1em;';
+      row.addClass('sfv-dd-row');
       const cb = row.createEl('input');
       cb.type = 'checkbox';
       cb.checked = currentValues.includes(option);
@@ -1217,29 +1252,28 @@ class SmartFolderView extends obsidian.ItemView {
 
     search.addEventListener('input', () => {
       const q = search.value.toLowerCase();
-      for (const { option, row } of rows) row.style.display = (!q || option.toLowerCase().includes(q)) ? 'flex' : 'none';
+      for (const { option, row } of rows) { if (!q || option.toLowerCase().includes(q)) row.removeClass('sfv-hidden'); else row.addClass('sfv-hidden'); }
     });
 
     box.addEventListener('toggle', () => {
       if (box.open) {
-        wrap.style.zIndex = '170';
-        box.style.zIndex = '170';
+        wrap.addClass('sfv-elevated');
+        box.addClass('sfv-elevated');
       } else {
-        wrap.style.zIndex = '1';
-        box.style.zIndex = '1';
+        wrap.removeClass('sfv-elevated');
+        box.removeClass('sfv-elevated');
         if (onCommit) onCommit();
       }
     });
   }
 
-  async renderView() {
+  renderView() {
     const profile = this.getRenderProfile();
     const container = this.containerEl.children[1];
     container.empty();
     container.classList.add('smart-folder-view-root');
     this.updateLeafTitle();
-    container.style.padding = '16px 18px';
-    container.style.overflowY = 'auto';
+    // padding and overflow set via .smart-folder-view-root in styles.css
 
     if (!profile) {
       container.createEl('p', { text: this.plugin.t('noProfile') });
@@ -1249,7 +1283,7 @@ class SmartFolderView extends obsidian.ItemView {
     this.ensureState(profile.id, profile.sortOrder, profile.viewMode);
 
     const topBar = container.createEl('div');
-    topBar.style.cssText = 'display:flex;justify-content:flex-start;gap:8px;margin-bottom:10px;';
+    topBar.addClass('sfv-top-bar');
     const saveBtn = topBar.createEl('button', { text: this.plugin.isDraft(profile.id) ? this.plugin.t('savePage') : this.plugin.t('updatePage') });
     saveBtn.addClass('mod-cta');
     saveBtn.addEventListener('click', async () => {
@@ -1263,11 +1297,11 @@ class SmartFolderView extends obsidian.ItemView {
     });
     topBar.createEl('button', { text: this.plugin.t('openBuilderBtn') }).addEventListener('click', () => new SetupModal(this.app, this.plugin).open());
     topBar.createEl('button', { text: this.plugin.t('openManagerBtn') }).addEventListener('click', () => new ProfileManagerModal(this.app, this.plugin).open());
-    topBar.createEl('button', { text: this.plugin.t('exportPage') }).addEventListener('click', async () => {
-      await this.plugin.exportProfileToMarkdown(profile);
+    topBar.createEl('button', { text: this.plugin.t('exportPage') }).addEventListener('click', () => {
+      void this.plugin.exportProfileToMarkdown(profile);
     });
-    topBar.createEl('button', { text: this.plugin.t('refreshPreview') }).addEventListener('click', async () => {
-      await this.renderView();
+    topBar.createEl('button', { text: this.plugin.t('refreshPreview') }).addEventListener('click', () => {
+      this.renderView();
       new obsidian.Notice(this.plugin.t('refreshPreviewDone'));
     });
 
@@ -1302,11 +1336,11 @@ class SmartFolderView extends obsidian.ItemView {
     if (defaultSelectionInitialized) this.saveState();
 
     const switchesEl = container.createEl('div');
-    switchesEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;';
+    switchesEl.addClass('sfv-switches');
     for (const key of attrKeys) {
       const enabled = this.filterState.enabledFilters.includes(key);
       const chip = switchesEl.createEl('label');
-      chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--background-modifier-border);font-size:1em;color:var(--text-normal);';
+      chip.addClass('sfv-chip');
       const cb = chip.createEl('input');
       cb.type = 'checkbox';
       cb.checked = enabled;
@@ -1316,18 +1350,18 @@ class SmartFolderView extends obsidian.ItemView {
         if (cb.checked) s.add(key); else s.delete(key);
         this.filterState.enabledFilters = attrKeys.filter(k => s.has(k));
         this.saveState();
-        this.renderView();
+        void this.renderView();
       });
     }
 
     const controls = container.createEl('div');
-    controls.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:12px;position:relative;z-index:120;overflow:visible;';
-    controls.createEl('p', { text: this.plugin.t('presetScopeDesc') }).style.cssText = 'margin:0;color:var(--text-muted);font-size:0.85em;';
+    controls.addClass('sfv-controls');
+    controls.createEl('p', { text: this.plugin.t('presetScopeDesc') }).addClass('sfv-controls-hint');
 
     const presets = this.loadPresets();
     const presetWrap = controls.createEl('div');
-    presetWrap.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    presetWrap.createEl('span', { text: this.plugin.t('preset') }).style.cssText = 'min-width:72px;color:var(--text-normal);';
+    presetWrap.addClass('sfv-preset-wrap');
+    presetWrap.createEl('span', { text: this.plugin.t('preset') }).addClass('sfv-dd-label');
     const presetSel = presetWrap.createEl('select');
     presetSel.createEl('option', { text: this.plugin.t('noPreset'), value: '' });
     for (const p of presets) {
@@ -1347,11 +1381,12 @@ class SmartFolderView extends obsidian.ItemView {
         this.filterState.presetName = p.name;
       }
       this.saveState();
-      this.renderView();
+      void this.renderView();
     });
     makeSelectSearchable(presetSel, this.plugin.t('search'));
 
-    presetWrap.createEl('button', { text: this.plugin.t('savePreset') }).addEventListener('click', async () => {
+    presetWrap.createEl('button', { text: this.plugin.t('savePreset') }).addEventListener('click', () => {
+      void (async () => {
       const name = (await askTextInput(this.app, this.plugin.t('savePreset'), this.plugin.t('presetPrompt'), this.filterState.presetName || '', this.plugin.t('presetSaveHint')) || '').trim();
       if (!name) {
         new obsidian.Notice(this.plugin.t('presetNameRequired'));
@@ -1363,7 +1398,8 @@ class SmartFolderView extends obsidian.ItemView {
       this.savePresets(next);
       this.filterState.presetName = name;
       this.saveState();
-      await this.renderView();
+      this.renderView();
+      })();
     });
 
     presetWrap.createEl('button', { text: this.plugin.t('delPreset') }).addEventListener('click', () => {
@@ -1372,11 +1408,11 @@ class SmartFolderView extends obsidian.ItemView {
       this.savePresets(currentPresets.filter(p => p.name !== this.filterState.presetName));
       this.filterState.presetName = '';
       this.saveState();
-      this.renderView();
+      void this.renderView();
     });
 
     const filterGrid = controls.createEl('div');
-    filterGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-start;';
+    filterGrid.addClass('sfv-filter-grid');
     for (const key of this.filterState.enabledFilters) {
       this.buildDropdown(filterGrid, key, optionsByAttr[key] || [], this.filterState.selectedByAttr[key] || [], (vals) => {
         this.filterState.selectedByAttr[key] = [...vals];
@@ -1388,8 +1424,8 @@ class SmartFolderView extends obsidian.ItemView {
     this.isFreshFilterState = false;
 
     const sortWrap = controls.createEl('label');
-    sortWrap.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    sortWrap.createEl('span', { text: this.plugin.t('sortOrder') }).style.cssText = 'min-width:72px;color:var(--text-normal);';
+    sortWrap.addClass('sfv-sort-wrap');
+    sortWrap.createEl('span', { text: this.plugin.t('sortOrder') }).addClass('sfv-dd-label');
     const sortSel = sortWrap.createEl('select');
     sortSel.createEl('option', { value: 'desc', text: this.plugin.t('desc') });
     sortSel.createEl('option', { value: 'asc', text: this.plugin.t('asc') });
@@ -1399,41 +1435,43 @@ class SmartFolderView extends obsidian.ItemView {
     sortSel.addEventListener('change', () => {
       this.filterState.sortOrder = sortSel.value;
       this.saveState();
-      this.renderView();
+      void this.renderView();
     });
 
     const modeWrap = controls.createEl('label');
-    modeWrap.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    modeWrap.createEl('span', { text: this.plugin.t('viewMode') }).style.cssText = 'min-width:72px;color:var(--text-normal);';
+    modeWrap.addClass('sfv-sort-wrap');
+    modeWrap.createEl('span', { text: this.plugin.t('viewMode') }).addClass('sfv-dd-label');
     const modeSel = modeWrap.createEl('select');
     modeSel.createEl('option', { value: 'timeline', text: this.plugin.t('timeline') });
     modeSel.createEl('option', { value: 'board', text: this.plugin.t('board') });
     modeSel.value = this.filterState.viewMode;
     makeSelectSearchable(modeSel, this.plugin.t('search'));
     modeSel.dispatchEvent(new Event('change'));
-    modeSel.addEventListener('change', async () => {
+    modeSel.addEventListener('change', () => {
       this.filterState.viewMode = modeSel.value === 'board' ? 'board' : 'timeline';
       this.saveState();
-      this.renderView();
+      void this.renderView();
     });
 
     if (this.filterState.viewMode === 'board') {
       const boardFieldWrap = controls.createEl('label');
-      boardFieldWrap.style.cssText = 'display:flex;gap:8px;align-items:center;';
-      boardFieldWrap.createEl('span', { text: this.plugin.t('boardField') }).style.cssText = 'min-width:72px;color:var(--text-normal);';
+      boardFieldWrap.addClass('sfv-sort-wrap');
+      boardFieldWrap.createEl('span', { text: this.plugin.t('boardField') }).addClass('sfv-dd-label');
       const boardFieldSel = boardFieldWrap.createEl('select');
       boardFieldSel.createEl('option', { value: '', text: this.plugin.t('choose') });
       for (const k of attrKeys) boardFieldSel.createEl('option', { value: k, text: k });
       boardFieldSel.value = profile.boardField || '';
       makeSelectSearchable(boardFieldSel, this.plugin.t('search'));
-      boardFieldSel.addEventListener('change', async () => {
-        const next = boardFieldSel.value;
-        profile.boardField = next;
-        const idx = this.plugin.data.profiles.findIndex(p => p.id === profile.id);
-        if (idx >= 0) this.plugin.data.profiles[idx].boardField = next;
-        if (this.plugin.draftProfile?.id === profile.id) this.plugin.draftProfile.boardField = next;
-        await this.plugin.persist();
-        await this.renderView();
+      boardFieldSel.addEventListener('change', () => {
+        void (async () => {
+          const next = boardFieldSel.value;
+          profile.boardField = next;
+          const idx = this.plugin.data.profiles.findIndex(p => p.id === profile.id);
+          if (idx >= 0) this.plugin.data.profiles[idx].boardField = next;
+          if (this.plugin.draftProfile?.id === profile.id) this.plugin.draftProfile.boardField = next;
+          await this.plugin.persist();
+          this.renderView();
+        })();
       });
     }
 
@@ -1465,7 +1503,7 @@ class SmartFolderView extends obsidian.ItemView {
       return this.filterState.sortOrder === 'asc' ? cmp : -cmp;
     });
 
-    container.createEl('p', { text: this.plugin.t('matched', { count: filtered.length }) }).style.cssText = 'color:var(--text-muted);margin:0 0 10px;';
+    container.createEl('p', { text: this.plugin.t('matched', { count: filtered.length }) }).addClass('sfv-matched');
     if (!filtered.length) {
       container.createEl('p', { text: this.plugin.t('noMatch') });
       return;
@@ -1474,7 +1512,7 @@ class SmartFolderView extends obsidian.ItemView {
     if (this.filterState.viewMode === 'timeline') {
       const ordered = this.applyOrder(profile.id, this.orderKey(profile), filtered);
       const orderActions = container.createEl('div');
-      orderActions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:0 0 10px;';
+      orderActions.addClass('sfv-order-actions');
       orderActions.createEl('button', { text: this.plugin.t('saveOrder') }).addEventListener('click', () => {
         this.saveOrder(profile.id, this.orderKey(profile), ordered.map(e => e.file));
         new obsidian.Notice(this.plugin.t('saveOrderDone'));
@@ -1483,28 +1521,28 @@ class SmartFolderView extends obsidian.ItemView {
         this.recordUndoSnapshot(profile);
         this.clearOrder(profile.id, this.orderKey(profile));
         new obsidian.Notice(this.plugin.t('resetOrderDone'));
-        await this.renderView();
+        await this.rerenderPreserveScroll();
       });
       orderActions.createEl('button', { text: this.plugin.t('undoLastAction') }).addEventListener('click', async () => {
         await this.undoLastAction(profile);
       });
 
       const timelineEl = container.createEl('div');
-      timelineEl.style.cssText = 'position:relative;padding-left:34px;margin-top:8px;';
+      timelineEl.addClass('sfv-timeline');
       const lineEl = timelineEl.createEl('div');
-      lineEl.style.cssText = 'position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--background-modifier-border);';
+      lineEl.addClass('sfv-timeline-line');
       const indicator = timelineEl.createEl('div');
-      indicator.style.cssText = 'position:absolute;left:22px;right:0;height:4px;border-radius:6px;background:var(--interactive-accent);opacity:0;pointer-events:none;z-index:40;transition:opacity 80ms ease;';
+      indicator.addClass('sfv-timeline-indicator');
       let dropBeforePath = null;
       const hideIndicator = () => {
-        indicator.style.opacity = '0';
+        indicator.removeClass('sfv-visible');
       };
       const updateDropIndicator = (clientY) => {
         const cards = Array.from(timelineEl.querySelectorAll('section[data-sfv-path]')).filter(el => !el.classList.contains('sfv-dragging'));
         if (!cards.length) {
           dropBeforePath = null;
-          indicator.style.top = '0px';
-          indicator.style.opacity = '1';
+          obsidian.setCssProps(indicator, { '--sfv-top': '0px' });
+          indicator.addClass('sfv-visible');
           return;
         }
         let beforeCard = null;
@@ -1523,8 +1561,8 @@ class SmartFolderView extends obsidian.ItemView {
           const last = cards[cards.length - 1];
           top = last.offsetTop + last.offsetHeight - 2;
         }
-        indicator.style.top = `${Math.max(0, top)}px`;
-        indicator.style.opacity = '1';
+        obsidian.setCssProps(indicator, { '--sfv-top': `${Math.max(0, top)}px` });
+        indicator.addClass('sfv-visible');
       };
 
       timelineEl.addEventListener('dragover', (e) => {
@@ -1597,7 +1635,7 @@ class SmartFolderView extends obsidian.ItemView {
         }
       };
 
-      timelineEl.addEventListener('drop', async (e) => {
+      timelineEl.addEventListener('drop', (e) => {
         e.preventDefault();
         hideIndicator();
         const payload = e.dataTransfer?.getData('text/plain') || '';
@@ -1606,7 +1644,7 @@ class SmartFolderView extends obsidian.ItemView {
         if (obj.token && this.timelineDragToken && obj.token !== this.timelineDragToken) return;
         if (!obj.path || obj.from !== 'timeline') return;
         const beforePath = dropBeforePath;
-        await handleTimelineDrop(obj.path, beforePath);
+        void handleTimelineDrop(obj.path, beforePath);
       });
 
       for (const { file, cache } of ordered) {
@@ -1648,7 +1686,7 @@ class SmartFolderView extends obsidian.ItemView {
     const columns = uniqueSorted([...grouped.keys()]);
 
     const orderActions = container.createEl('div');
-    orderActions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:0 0 10px;';
+    orderActions.addClass('sfv-order-actions');
 
     orderActions.createEl('button', { text: this.plugin.t('saveOrder') }).addEventListener('click', () => {
       for (const col of columns) {
@@ -1668,15 +1706,13 @@ class SmartFolderView extends obsidian.ItemView {
     });
 
     const boardEl = container.createEl('div');
-    boardEl.style.cssText = 'display:flex;gap:12px;align-items:flex-start;overflow-x:auto;margin-top:2px;padding-top:2px;';
+    boardEl.addClass('sfv-board');
 
     const handleDrop = async (payload, to, beforePath) => {
       const fromArr = grouped.get(payload.from) || [];
       const toArr = grouped.get(to) || [];
       const idx = fromArr.findIndex(e => e.file.path === payload.path);
       if (idx < 0) return;
-      const moved = fromArr[idx];
-
       let action = 'order';
       let nextBoardValue = undefined;
       if (payload.from !== to && profile.boardField) {
@@ -1722,15 +1758,15 @@ class SmartFolderView extends obsidian.ItemView {
       grouped.set(col, ordered);
 
       const colWrap = boardEl.createEl('section');
-      colWrap.style.cssText = 'min-width:280px;max-width:320px;flex:0 0 300px;border:1px solid var(--background-modifier-border);border-radius:12px;background:var(--background-primary-alt);padding:8px;';
-      colWrap.createEl('strong', { text: `${col} (${ordered.length})` });
+      colWrap.addClass('sfv-board-col');
+      colWrap.createEl('strong', { text: `${String(col)} (${ordered.length})` });
       const cardsEl = colWrap.createEl('div');
-      cardsEl.style.cssText = 'margin-top:8px;min-height:40px;position:relative;';
+      cardsEl.addClass('sfv-board-cards');
       const dropIndicator = cardsEl.createEl('div');
-      dropIndicator.style.cssText = 'height:10px;border:2px dashed var(--interactive-accent);border-radius:8px;background:color-mix(in srgb, var(--interactive-accent) 12%, transparent);margin:4px 0;opacity:0;pointer-events:none;transition:opacity 80ms ease;';
+      dropIndicator.addClass('sfv-drop-indicator');
       let dropBeforePath = null;
       const hideDropIndicator = () => {
-        dropIndicator.style.opacity = '0';
+        dropIndicator.removeClass('sfv-visible');
         dropBeforePath = null;
       };
       const getNextCardPath = (cardEl) => {
@@ -1751,7 +1787,7 @@ class SmartFolderView extends obsidian.ItemView {
         if (!cards.length) {
           dropBeforePath = null;
           cardsEl.appendChild(dropIndicator);
-          dropIndicator.style.opacity = '1';
+          dropIndicator.addClass('sfv-visible');
           return;
         }
         let beforeCard = null;
@@ -1765,7 +1801,7 @@ class SmartFolderView extends obsidian.ItemView {
         dropBeforePath = beforeCard?.getAttribute('data-sfv-path') || null;
         if (beforeCard) cardsEl.insertBefore(dropIndicator, beforeCard);
         else cardsEl.appendChild(dropIndicator);
-        dropIndicator.style.opacity = '1';
+        dropIndicator.addClass('sfv-visible');
       };
       cardsEl.addEventListener('dragover', e => {
         e.preventDefault();
@@ -1777,13 +1813,13 @@ class SmartFolderView extends obsidian.ItemView {
         if (related instanceof Node && cardsEl.contains(related)) return;
         hideDropIndicator();
       });
-      cardsEl.addEventListener('drop', async (e) => {
+      cardsEl.addEventListener('drop', (e) => {
         e.preventDefault();
         const beforePath = dropBeforePath;
         hideDropIndicator();
         const payload = e.dataTransfer?.getData('text/plain') || '';
         if (!payload) return;
-        await handleDrop(JSON.parse(payload), col, beforePath);
+        void handleDrop(JSON.parse(payload), col, beforePath);
       });
 
       for (const { file, cache } of ordered) {
@@ -1804,20 +1840,20 @@ class SmartFolderView extends obsidian.ItemView {
           e.preventDefault();
           updateDropIndicator(e.clientY);
         });
-        card.addEventListener('drop', async (e) => {
+        card.addEventListener('drop', (e) => {
           e.preventDefault();
           e.stopPropagation();
           const beforePath = getCardDropBeforePath(card, e.clientY);
           hideDropIndicator();
           const payload = e.dataTransfer?.getData('text/plain') || '';
           if (!payload) return;
-          await handleDrop(JSON.parse(payload), col, beforePath);
+          void handleDrop(JSON.parse(payload), col, beforePath);
         });
       }
     }
   }
 
-  async onClose() {}
+  onClose() {}
 }
 
 class SmartFolderSettingTab extends obsidian.PluginSettingTab {
@@ -1909,7 +1945,7 @@ class SmartFolderSettingTab extends obsidian.PluginSettingTab {
       .setName(this.plugin.t('fallbackColor'))
       .setDesc('CSS color value, e.g. #3b82f6 or var(--interactive-accent)')
       .addText(t => t
-        .setPlaceholder('var(--interactive-accent)')
+        .setPlaceholder('e.g. var(--interactive-accent)')
         .setValue(this.plugin.data.colorConfig.fallbackColor)
         .onChange(async (v) => {
           this.plugin.data.colorConfig.fallbackColor = v.trim() || DEFAULT_COLOR_CONFIG.fallbackColor;
@@ -1983,7 +2019,7 @@ class SmartFolderPlugin extends obsidian.Plugin {
 
   async saveProfile(profile, setActive, askNameIfEmpty) {
     const next = { ...profile, displayFields: [...(profile.displayFields || [])], updatedAt: Date.now() };
-    if (!next.name && askNameIfEmpty) next.name = (window.prompt(this.t('pageNamePrompt'), next.sourceFolder || '') || '').trim();
+    if (!next.name && askNameIfEmpty) next.name = ((await askTextInput(this.app, this.t('pageNamePrompt'), this.t('pageNamePrompt'), next.sourceFolder || '', '')) || '').trim();
     if (!next.name) next.name = next.sourceFolder || `Page-${new Date().toISOString()}`;
 
     const idx = this.data.profiles.findIndex(p => p.id === next.id);
@@ -2055,7 +2091,7 @@ class SmartFolderPlugin extends obsidian.Plugin {
       const safeBase = (profile.name || profile.sourceFolder || 'smart-folder-page')
         .replace(/[\\/:*?"<>|]/g, '-')
         .trim() || 'smart-folder-page';
-      const folderPrefix = chosenFolder ? `${chosenFolder}/` : '';
+      const folderPrefix = chosenFolder ? `${String(chosenFolder)}/` : '';
       let path = `${folderPrefix}${safeBase}.smart-folder-page.md`;
       let i = 1;
       while (this.app.vault.getAbstractFileByPath(path)) {
@@ -2098,62 +2134,7 @@ class SmartFolderPlugin extends obsidian.Plugin {
   async onload() {
     await this.loadPluginData();
 
-    this.styleEl = document.createElement('style');
-    this.styleEl.textContent = `
-      .smart-folder-view-root {
-        position: relative;
-        font-size: 12px;
-        line-height: 1.45;
-        border-radius: 12px;
-        overflow: hidden;
-        background: rgba(252, 253, 255, 0.8);
-        backdrop-filter: blur(8px) saturate(1.03);
-        box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.28);
-      }
-      .theme-dark .smart-folder-view-root {
-        background: rgba(5, 8, 12, 0.8);
-        backdrop-filter: blur(8px) saturate(0.95);
-        box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.28);
-      }
-      .smart-folder-view-root details {
-        position: relative;
-      }
-      .smart-folder-view-root details[open] {
-        z-index: 200;
-      }
-      .smart-folder-view-root .sfv-dragging {
-        opacity: 0.72;
-      }
-      .smart-folder-view-root .sfv-card-body,
-      .smart-folder-view-root .sfv-card-body p,
-      .smart-folder-view-root .sfv-card-body li,
-      .smart-folder-view-root .sfv-card-body ul,
-      .smart-folder-view-root .sfv-card-body ol,
-      .smart-folder-view-root .sfv-card-body a,
-      .smart-folder-view-root .sfv-card-body strong,
-      .smart-folder-view-root .sfv-card-body em,
-      .smart-folder-view-root .sfv-card-body code,
-      .smart-folder-view-root .sfv-card-body span,
-      .smart-folder-view-root .sfv-card-body h1,
-      .smart-folder-view-root .sfv-card-body h2,
-      .smart-folder-view-root .sfv-card-body h3,
-      .smart-folder-view-root .sfv-card-body h4,
-      .smart-folder-view-root .sfv-card-body h5,
-      .smart-folder-view-root .sfv-card-body h6 {
-        font-size: calc(var(--font-text-size) - 1px) !important;
-        line-height: var(--line-height-normal) !important;
-      }
-      .smart-folder-view-root button,
-      .smart-folder-view-root input,
-      .smart-folder-view-root select,
-      .smart-folder-view-root summary,
-      .smart-folder-view-root label,
-      .smart-folder-view-root span,
-      .smart-folder-view-root p {
-        font-size: 12px;
-      }
-    `;
-    document.head.appendChild(this.styleEl);
+    // Styles loaded from styles.css
 
     this.registerView(VIEW_TYPE, leaf => new SmartFolderView(leaf, this));
 
@@ -2175,27 +2156,29 @@ class SmartFolderPlugin extends obsidian.Plugin {
 
       if (!el.dataset.sfvAutoOpened) {
         el.dataset.sfvAutoOpened = '1';
-        window.setTimeout(async () => {
-          await this.openProfileFromExport(raw);
+        window.setTimeout(() => {
+          void this.openProfileFromExport(raw);
         }, 0);
       }
 
       const wrap = el.createEl('div');
-      wrap.style.cssText = 'border:1px solid var(--background-modifier-border);border-radius:10px;padding:10px;background:var(--background-primary-alt);';
+      wrap.addClass('sfv-export-block');
       wrap.createEl('strong', { text: this.t('exportBlockTitle') });
-      wrap.createEl('p', { text: `${this.t('exportBlockDesc')} ${profile.name || profile.sourceFolder}` }).style.cssText = 'margin:6px 0;color:var(--text-muted);';
+      wrap.createEl('p', { text: `${this.t('exportBlockDesc')} ${profile.name || profile.sourceFolder}` }).addClass('sfv-export-desc');
       const row = wrap.createEl('div');
-      row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+      row.addClass('sfv-export-row');
       const openBtn = row.createEl('button', { text: this.t('exportBlockOpen') });
       openBtn.addClass('mod-cta');
-      openBtn.addEventListener('click', async () => {
-        const ok = await this.openProfileFromExport(raw);
-        if (!ok) new obsidian.Notice(this.t('exportBlockInvalid'));
+      openBtn.addEventListener('click', () => {
+        void this.openProfileFromExport(raw).then(ok => {
+          if (!ok) new obsidian.Notice(this.t('exportBlockInvalid'));
+        });
       });
       const importBtn = row.createEl('button', { text: this.t('exportBlockImport') });
-      importBtn.addEventListener('click', async () => {
-        const ok = await this.importProfileFromExport(raw);
-        if (!ok) new obsidian.Notice(this.t('exportBlockInvalid'));
+      importBtn.addEventListener('click', () => {
+        void this.importProfileFromExport(raw).then(ok => {
+          if (!ok) new obsidian.Notice(this.t('exportBlockInvalid'));
+        });
       });
     });
 
@@ -2214,29 +2197,31 @@ class SmartFolderPlugin extends obsidian.Plugin {
       for (const box of openBoxes) box.removeAttribute('open');
     });
 
-    this.addRibbonIcon('layout-grid', this.t('title'), async () => {
-      const action = await askStartAction(this.app, this);
-      if (action === 'open') new ProfileManagerModal(this.app, this).open();
-      else if (action === 'create') new SetupModal(this.app, this).open();
+    this.addRibbonIcon('layout-grid', this.t('title'), () => {
+      void askStartAction(this.app, this).then(action => {
+        if (action === 'open') new ProfileManagerModal(this.app, this).open();
+        else if (action === 'create') new SetupModal(this.app, this).open();
+      });
     });
-    this.addCommand({ id: 'open-smart-folder-view', name: this.t('openBuilder'), callback: () => new SetupModal(this.app, this).open() });
-    this.addCommand({ id: 'open-smart-folder-view-builder', name: this.t('openBuilder'), callback: () => new SetupModal(this.app, this).open() });
-    this.addCommand({ id: 'open-smart-folder-view-manager', name: this.t('openManager'), callback: () => new ProfileManagerModal(this.app, this).open() });
-    this.addCommand({ id: 'open-smart-folder-view-last', name: this.t('openLast'), callback: async () => {
-      if (!this.getCurrentProfile()) {
-        new obsidian.Notice(this.t('noProfile'));
-        new SetupModal(this.app, this).open();
-        return;
-      }
-      await this.activateView({ profile: this.getCurrentProfile(), newLeaf: true });
+    this.addCommand({ id: 'create-page', name: this.t('openBuilder'), callback: () => new SetupModal(this.app, this).open() });
+    this.addCommand({ id: 'create-page-2', name: this.t('openBuilder'), callback: () => new SetupModal(this.app, this).open() });
+    this.addCommand({ id: 'open-manager', name: this.t('openManager'), callback: () => new ProfileManagerModal(this.app, this).open() });
+    this.addCommand({ id: 'open-last', name: this.t('openLast'), callback: () => {
+      void (async () => {
+        if (!this.getCurrentProfile()) {
+          new obsidian.Notice(this.t('noProfile'));
+          new SetupModal(this.app, this).open();
+          return;
+        }
+        await this.activateView({ profile: this.getCurrentProfile(), newLeaf: true });
+      })();
     } });
-    this.addCommand({ id: 'export-smart-folder-page', name: this.t('exportPage'), callback: async () => {
-      const profile = this.getCurrentProfile();
-      if (!profile) {
-        new obsidian.Notice(this.t('noProfile'));
-        return;
-      }
-      await this.exportProfileToMarkdown(profile);
+    this.addCommand({ id: 'export-page', name: this.t('exportPage'), callback: () => {
+      void (async () => {
+        const profile = this.getCurrentProfile();
+        if (!profile) { new obsidian.Notice(this.t('noProfile')); return; }
+        await this.exportProfileToMarkdown(profile);
+      })();
     } });
 
     this.addSettingTab(new SmartFolderSettingTab(this.app, this));
@@ -2264,8 +2249,6 @@ class SmartFolderPlugin extends obsidian.Plugin {
   }
 
   onunload() {
-    if (this.styleEl) this.styleEl.remove();
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE);
   }
 
   async loadPluginData() {

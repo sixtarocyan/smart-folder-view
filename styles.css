@@ -1,5 +1,189 @@
-/*
- * Smart Folder View currently ships its view styling from main.js.
- * This file is intentionally kept as a release asset placeholder so
- * GitHub releases can include the standard Obsidian plugin file set.
- */
+/* Smart Folder View — plugin styles */
+
+/* ── Root container ─────────────────────────────────────────────── */
+.smart-folder-view-root {
+  position: relative;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(252, 253, 255, 0.8);
+  backdrop-filter: blur(8px) saturate(1.03);
+  box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.28);
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+.theme-dark .smart-folder-view-root {
+  background: rgba(5, 8, 12, 0.8);
+  backdrop-filter: blur(8px) saturate(0.95);
+  box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.28);
+}
+.smart-folder-view-root details { position: relative; }
+.smart-folder-view-root details[open] { z-index: 200; }
+
+/* ── Utility states ──────────────────────────────────────────────── */
+.sfv-dragging { opacity: 0.72; }
+.sfv-hidden   { display: none !important; }
+.sfv-visible  { opacity: 1 !important; }
+.sfv-elevated { z-index: 170 !important; }
+
+/* ── Font-size normalization ─────────────────────────────────────── */
+.smart-folder-view-root .sfv-card-body,
+.smart-folder-view-root .sfv-card-body p,
+.smart-folder-view-root .sfv-card-body li,
+.smart-folder-view-root .sfv-card-body ul,
+.smart-folder-view-root .sfv-card-body ol,
+.smart-folder-view-root .sfv-card-body a,
+.smart-folder-view-root .sfv-card-body strong,
+.smart-folder-view-root .sfv-card-body em,
+.smart-folder-view-root .sfv-card-body code,
+.smart-folder-view-root .sfv-card-body span,
+.smart-folder-view-root .sfv-card-body h1,
+.smart-folder-view-root .sfv-card-body h2,
+.smart-folder-view-root .sfv-card-body h3,
+.smart-folder-view-root .sfv-card-body h4,
+.smart-folder-view-root .sfv-card-body h5,
+.smart-folder-view-root .sfv-card-body h6 {
+  font-size: calc(var(--font-text-size) - 1px) !important;
+  line-height: var(--line-height-normal) !important;
+}
+.smart-folder-view-root button,
+.smart-folder-view-root input,
+.smart-folder-view-root select,
+.smart-folder-view-root summary,
+.smart-folder-view-root label,
+.smart-folder-view-root span,
+.smart-folder-view-root p { font-size: 12px; }
+
+/* ── Searchable single-select ────────────────────────────────────── */
+.sfv-sel-host { position: relative; display: block; z-index: 1; width: 100%; }
+.sfv-sel-host.sfv-elevated { z-index: 160; }
+.sfv-sel-summary {
+  list-style: none; cursor: pointer; min-height: 30px;
+  padding: 5px 10px; border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+.sfv-sel-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  z-index: 60; max-height: 220px; overflow: auto; padding: 8px;
+  border-radius: 10px; border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  min-width: var(--sfv-sel-min-width, 0px);
+  max-width: var(--sfv-sel-max-width, none);
+}
+.sfv-sel-input {
+  width: 100%; height: 28px; padding: 2px 8px; border-radius: 8px;
+  border: 1px solid var(--background-modifier-border); margin-bottom: 6px;
+}
+.sfv-sel-meter { position: fixed; visibility: hidden; white-space: nowrap; font: var(--font-ui-medium); }
+.sfv-sel-row {
+  all: unset; display: block; width: 100%; box-sizing: border-box;
+  text-align: left; padding: 5px 8px; cursor: pointer; border-radius: 6px;
+}
+.sfv-sel-row:hover { background: var(--background-modifier-hover); }
+.sfv-sel-summary-text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ── Multi-select dropdown filter ────────────────────────────────── */
+.sfv-dd-wrap {
+  display: flex; align-items: flex-start; gap: 8px;
+  flex: 1 1 420px; min-width: 320px; max-width: 420px;
+  position: relative; z-index: 1;
+}
+.sfv-dd-wrap.sfv-elevated { z-index: 170; }
+.sfv-dd-label { font-size: 1em; color: var(--text-normal); min-width: 72px; padding-top: 8px; white-space: nowrap; }
+.sfv-dd-box { flex: 1; position: relative; z-index: 1; min-width: 0; }
+.sfv-dd-box.sfv-elevated { z-index: 170; }
+.sfv-dd-summary {
+  list-style: none; cursor: pointer; height: 36px;
+  padding: 7px 34px 7px 12px; border-radius: 10px;
+  border: 1px solid var(--background-modifier-border);
+  font-size: 1em; box-sizing: border-box; overflow: hidden;
+}
+.sfv-dd-summary-text { color: var(--text-normal); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sfv-dd-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  z-index: 30; max-height: 260px; overflow: auto; padding: 8px;
+  border-radius: 10px; border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+.sfv-dd-action-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
+.sfv-dd-action-btn { border: none; background: transparent; color: var(--interactive-accent); cursor: pointer; }
+.sfv-dd-search {
+  width: 100%; height: 32px; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--background-modifier-border); margin: 6px 0;
+}
+.sfv-dd-row { display: flex; align-items: center; gap: 6px; padding: 4px; font-size: 1em; }
+
+/* ── Cards ───────────────────────────────────────────────────────── */
+.sfv-card {
+  position: relative; margin: 0 0 12px; padding: 12px 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 4px solid var(--sfv-color, var(--interactive-accent));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sfv-color, var(--interactive-accent)) 9%, var(--background-primary) 91%);
+}
+.sfv-card-dot {
+  position: absolute; left: -26px; top: 17px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--sfv-color, var(--interactive-accent));
+  border: 2px solid var(--background-primary);
+}
+.sfv-card-top { display: flex; align-items: center; gap: 10px; overflow: hidden; margin-bottom: 5px; }
+.sfv-card-meta { font-size: 0.85em; color: var(--text-muted); white-space: nowrap; overflow-x: auto; flex: 1 1 auto; min-width: 100px; }
+.sfv-card-link { font-size: 1em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 220px; min-width: 80px; }
+.sfv-card-body { max-height: calc(var(--line-height-normal) * 1em * 3); overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
+
+/* ── Modal shared ────────────────────────────────────────────────── */
+.sfv-modal-action { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.sfv-setup-action { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.sfv-modal-hint { margin: 6px 0 10px; color: var(--text-muted); font-size: 0.9em; }
+.sfv-modal-input { width: 100%; margin-top: 6px; }
+.sfv-modal-select { width: 100%; }
+
+/* ── View controls ───────────────────────────────────────────────── */
+.sfv-top-bar { display: flex; justify-content: flex-start; gap: 8px; margin-bottom: 10px; }
+.sfv-switches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.sfv-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border-radius: 999px; border: 1px solid var(--background-modifier-border);
+  font-size: 1em; color: var(--text-normal);
+}
+.sfv-controls {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
+  position: relative; z-index: 120; overflow: visible;
+}
+.sfv-controls-hint { margin: 0; color: var(--text-muted); font-size: 0.85em; }
+.sfv-preset-wrap { display: flex; gap: 8px; align-items: center; }
+.sfv-filter-grid { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-start; }
+.sfv-sort-wrap { display: flex; gap: 8px; align-items: center; }
+.sfv-matched { color: var(--text-muted); margin: 0 0 10px; }
+.sfv-order-actions { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
+
+/* ── Timeline ────────────────────────────────────────────────────── */
+.sfv-timeline { position: relative; padding-left: 34px; margin-top: 8px; }
+.sfv-timeline-line { position: absolute; left: 16px; top: 0; bottom: 0; width: 2px; background: var(--background-modifier-border); }
+.sfv-timeline-indicator {
+  position: absolute; left: 22px; right: 0; height: 4px; border-radius: 6px;
+  background: var(--interactive-accent); opacity: 0; pointer-events: none;
+  z-index: 40; transition: opacity 80ms ease; top: var(--sfv-top, 0px);
+}
+.sfv-timeline-indicator.sfv-visible { opacity: 1; }
+
+/* ── Board ───────────────────────────────────────────────────────── */
+.sfv-board { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; margin-top: 2px; padding-top: 2px; }
+.sfv-board-col {
+  min-width: 280px; max-width: 320px; flex: 0 0 300px;
+  border: 1px solid var(--background-modifier-border); border-radius: 12px;
+  background: var(--background-primary-alt); padding: 8px;
+}
+.sfv-board-cards { margin-top: 8px; min-height: 40px; position: relative; }
+.sfv-drop-indicator {
+  height: 10px; border: 2px dashed var(--interactive-accent); border-radius: 8px;
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  margin: 4px 0; opacity: 0; pointer-events: none; transition: opacity 80ms ease;
+}
+.sfv-drop-indicator.sfv-visible { opacity: 1; }
+
+/* ── Export block ────────────────────────────────────────────────── */
+.sfv-export-block { border: 1px solid var(--background-modifier-border); border-radius: 10px; padding: 10px; background: var(--background-primary-alt); }
+.sfv-export-desc { margin: 6px 0; color: var(--text-muted); }
+.sfv-export-row  { display: flex; gap: 8px; flex-wrap: wrap; }

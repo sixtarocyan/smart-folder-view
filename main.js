@@ -966,7 +966,7 @@ var SmartFolderView = class extends obsidian.ItemView {
     link.addEventListener("pointermove", triggerHoverPreview);
     link.addEventListener("click", (e) => {
       e.preventDefault();
-      this.app.workspace.openLinkText(file.path, file.path, e.ctrlKey || e.metaKey);
+      void this.app.workspace.openLinkText(file.path, file.path, e.ctrlKey || e.metaKey);
     });
     const triggerHoverPreviewForTarget = (e, targetEl) => {
       const linktext = targetEl.getAttribute("data-href") || targetEl.getAttribute("href") || targetEl.textContent?.trim() || "";
@@ -1012,11 +1012,11 @@ var SmartFolderView = class extends obsidian.ItemView {
       const href = el.getAttribute("data-href") || el.getAttribute("href");
       if (!href) return;
       e.preventDefault();
-      this.app.workspace.openLinkText(href, file.path, e.ctrlKey || e.metaKey);
+      void this.app.workspace.openLinkText(href, file.path, e.ctrlKey || e.metaKey);
     }, true);
     void this.app.vault.read(file).then((raw) => {
       const body = stripFrontmatter(raw) || "\uFF08\u65E0\u6B63\u6587\uFF09";
-      obsidian.MarkdownRenderer.render(this.app, body, bodyEl, file.path, this);
+      void obsidian.MarkdownRenderer.render(this.app, body, bodyEl, file.path, this);
     }).catch(() => bodyEl.setText("\uFF08\u6B63\u6587\u8BFB\u53D6\u5931\u8D25\uFF09"));
   }
   buildDropdown(container, label, options, selectedValues, onChange, onCommit) {
@@ -1556,7 +1556,7 @@ var SmartFolderView = class extends obsidian.ItemView {
       grouped.set(col, ordered);
       const colWrap = boardEl.createEl("section");
       colWrap.addClass("sfv-board-col");
-      colWrap.createEl("strong", { text: `${String(col)} (${ordered.length})` });
+      colWrap.createEl("strong", { text: `${col} (${ordered.length})` });
       const cardsEl = colWrap.createEl("div");
       cardsEl.addClass("sfv-board-cards");
       const dropIndicator = cardsEl.createEl("div");
@@ -1691,7 +1691,7 @@ var SmartFolderSettingTab = class extends obsidian.PluginSettingTab {
       this.plugin.data.colorConfig.lightnessRange = v;
       await this.plugin.persist();
     }));
-    new obsidian.Setting(containerEl).setName(this.plugin.t("fallbackColor")).setDesc("CSS color value, e.g. #3b82f6 or var(--interactive-accent)").addText((t) => t.setPlaceholder("e.g. var(--interactive-accent)").setValue(this.plugin.data.colorConfig.fallbackColor).onChange(async (v) => {
+    new obsidian.Setting(containerEl).setName(this.plugin.t("fallbackColor")).setDesc("CSS color value, e.g. #3b82f6 or var(--interactive-accent)").addText((t) => t.setPlaceholder("E.g. var(--interactive-accent)").setValue(this.plugin.data.colorConfig.fallbackColor).onChange(async (v) => {
       this.plugin.data.colorConfig.fallbackColor = v.trim() || DEFAULT_COLOR_CONFIG.fallbackColor;
       await this.plugin.persist();
     })).addButton((b) => b.setButtonText(this.plugin.t("resetDefault")).onClick(async () => {
@@ -1809,7 +1809,7 @@ var SmartFolderPlugin = class extends obsidian.Plugin {
       const chosenFolder = await askFolderSelect(this.app, this, folders, defaultFolder);
       if (chosenFolder == null) return;
       const safeBase = (profile.name || profile.sourceFolder || "smart-folder-page").replace(/[\\/:*?"<>|]/g, "-").trim() || "smart-folder-page";
-      const folderPrefix = chosenFolder ? `${String(chosenFolder)}/` : "";
+      const folderPrefix = chosenFolder ? `${chosenFolder}/` : "";
       let path = `${folderPrefix}${safeBase}.smart-folder-page.md`;
       let i = 1;
       while (this.app.vault.getAbstractFileByPath(path)) {

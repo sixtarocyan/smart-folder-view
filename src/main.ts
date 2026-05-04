@@ -294,17 +294,17 @@ function colorForValue(value, config) {
   return `hsl(${h} ${s}% ${l}%)`;
 }
 
-function uniqueSorted(items) {
+function uniqueSorted(items: string[]) {
   return [...new Set(items)].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
 }
 
-function toFlatArray(value) {
+function toFlatArray(value: unknown): string[] {
   if (value == null) return [];
   if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
   return [String(value).trim()].filter(Boolean);
 }
 
-function getFrontmatterValues(cache, key) {
+function getFrontmatterValues(cache: obsidian.CachedMetadata | null | undefined, key: string): string[] {
   if (!cache?.frontmatter) return [];
   return toFlatArray(cache.frontmatter[key]);
 }
@@ -722,8 +722,8 @@ class FolderSelectModal extends obsidian.Modal {
   }
 }
 
-function askFolderSelect(app, plugin, folders, initialValue) {
-  return new Promise(resolve => {
+function askFolderSelect(app, plugin, folders, initialValue): Promise<string | null> {
+  return new Promise<string | null>(resolve => {
     new FolderSelectModal(app, plugin, folders, initialValue, resolve).open();
   });
 }
@@ -1035,7 +1035,7 @@ class SmartFolderView extends obsidian.ItemView {
     link.addEventListener('pointermove', triggerHoverPreview);
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      this.app.workspace.openLinkText(file.path, file.path, e.ctrlKey || e.metaKey);
+      void this.app.workspace.openLinkText(file.path, file.path, e.ctrlKey || e.metaKey);
     });
 
     const triggerHoverPreviewForTarget = (e, targetEl) => {
@@ -1085,11 +1085,11 @@ class SmartFolderView extends obsidian.ItemView {
       const href = el.getAttribute('data-href') || el.getAttribute('href');
       if (!href) return;
       e.preventDefault();
-      this.app.workspace.openLinkText(href, file.path, e.ctrlKey || e.metaKey);
+      void this.app.workspace.openLinkText(href, file.path, e.ctrlKey || e.metaKey);
     }, true);
     void this.app.vault.read(file).then(raw => {
       const body = stripFrontmatter(raw) || '（无正文）';
-      obsidian.MarkdownRenderer.render(this.app, body, bodyEl, file.path, this);
+      void obsidian.MarkdownRenderer.render(this.app, body, bodyEl, file.path, this);
     }).catch(() => bodyEl.setText('（正文读取失败）'));
   }
 
@@ -1605,7 +1605,7 @@ class SmartFolderView extends obsidian.ItemView {
       return;
     }
 
-    const grouped = new Map();
+    const grouped = new Map<string, Array<{ file: obsidian.TFile; cache: obsidian.CachedMetadata }>>();
     const unsetLabel = this.plugin.t('boardUnset');
     for (const entry of filtered) {
       const cols = this.getBoardFieldValues(entry.file, entry.cache, profile.boardField);
@@ -1692,7 +1692,7 @@ class SmartFolderView extends obsidian.ItemView {
 
       const colWrap = boardEl.createEl('section');
       colWrap.addClass('sfv-board-col');
-      colWrap.createEl('strong', { text: `${String(col)} (${ordered.length})` });
+      colWrap.createEl('strong', { text: `${col} (${ordered.length})` });
       const cardsEl = colWrap.createEl('div');
       cardsEl.addClass('sfv-board-cards');
       const dropIndicator = cardsEl.createEl('div');
@@ -1878,7 +1878,7 @@ class SmartFolderSettingTab extends obsidian.PluginSettingTab {
       .setName(this.plugin.t('fallbackColor'))
       .setDesc('CSS color value, e.g. #3b82f6 or var(--interactive-accent)')
       .addText(t => t
-        .setPlaceholder('e.g. var(--interactive-accent)')
+        .setPlaceholder('E.g. var(--interactive-accent)')
         .setValue(this.plugin.data.colorConfig.fallbackColor)
         .onChange(async (v) => {
           this.plugin.data.colorConfig.fallbackColor = v.trim() || DEFAULT_COLOR_CONFIG.fallbackColor;
@@ -2024,7 +2024,7 @@ class SmartFolderPlugin extends obsidian.Plugin {
       const safeBase = (profile.name || profile.sourceFolder || 'smart-folder-page')
         .replace(/[\\/:*?"<>|]/g, '-')
         .trim() || 'smart-folder-page';
-      const folderPrefix = chosenFolder ? `${String(chosenFolder)}/` : '';
+      const folderPrefix = chosenFolder ? `${chosenFolder}/` : '';
       let path = `${folderPrefix}${safeBase}.smart-folder-page.md`;
       let i = 1;
       while (this.app.vault.getAbstractFileByPath(path)) {

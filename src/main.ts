@@ -301,6 +301,7 @@ function uniqueSorted(items: string[]) {
 function toFlatArray(value: unknown): string[] {
   if (value == null) return [];
   if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+  if (typeof value === 'object') return [];
   return [String(value).trim()].filter(Boolean);
 }
 
@@ -1878,7 +1879,7 @@ class SmartFolderSettingTab extends obsidian.PluginSettingTab {
       .setName(this.plugin.t('fallbackColor'))
       .setDesc('CSS color value, e.g. #3b82f6 or var(--interactive-accent)')
       .addText(t => t
-        .setPlaceholder('E.g. var(--interactive-accent)')
+        .setPlaceholder('var(--interactive-accent)')
         .setValue(this.plugin.data.colorConfig.fallbackColor)
         .onChange(async (v) => {
           this.plugin.data.colorConfig.fallbackColor = v.trim() || DEFAULT_COLOR_CONFIG.fallbackColor;

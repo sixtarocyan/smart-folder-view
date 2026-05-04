@@ -313,6 +313,7 @@ function uniqueSorted(items) {
 function toFlatArray(value) {
   if (value == null) return [];
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === "object") return [];
   return [String(value).trim()].filter(Boolean);
 }
 function getFrontmatterValues(cache, key) {
@@ -1691,7 +1692,7 @@ var SmartFolderSettingTab = class extends obsidian.PluginSettingTab {
       this.plugin.data.colorConfig.lightnessRange = v;
       await this.plugin.persist();
     }));
-    new obsidian.Setting(containerEl).setName(this.plugin.t("fallbackColor")).setDesc("CSS color value, e.g. #3b82f6 or var(--interactive-accent)").addText((t) => t.setPlaceholder("E.g. var(--interactive-accent)").setValue(this.plugin.data.colorConfig.fallbackColor).onChange(async (v) => {
+    new obsidian.Setting(containerEl).setName(this.plugin.t("fallbackColor")).setDesc("CSS color value, e.g. #3b82f6 or var(--interactive-accent)").addText((t) => t.setPlaceholder("var(--interactive-accent)").setValue(this.plugin.data.colorConfig.fallbackColor).onChange(async (v) => {
       this.plugin.data.colorConfig.fallbackColor = v.trim() || DEFAULT_COLOR_CONFIG.fallbackColor;
       await this.plugin.persist();
     })).addButton((b) => b.setButtonText(this.plugin.t("resetDefault")).onClick(async () => {

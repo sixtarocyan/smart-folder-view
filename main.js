@@ -313,8 +313,11 @@ function uniqueSorted(items) {
 function toFlatArray(value) {
   if (value == null) return [];
   if (Array.isArray(value)) return value.flatMap((v) => toFlatArray(v));
-  if (typeof value === "object") return [];
-  return [String(value).trim()].filter(Boolean);
+  if (typeof value === "string") return [value.trim()].filter(Boolean);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return [`${value}`.trim()].filter(Boolean);
+  }
+  return [];
 }
 function getFrontmatterValues(cache, key) {
   if (!cache?.frontmatter) return [];

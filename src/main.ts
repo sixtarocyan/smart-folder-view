@@ -301,8 +301,11 @@ function uniqueSorted(items: string[]) {
 function toFlatArray(value: unknown): string[] {
   if (value == null) return [];
   if (Array.isArray(value)) return value.flatMap(v => toFlatArray(v));
-  if (typeof value === 'object') return [];
-  return [String(value).trim()].filter(Boolean);
+  if (typeof value === 'string') return [value.trim()].filter(Boolean);
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return [`${value}`.trim()].filter(Boolean);
+  }
+  return [];
 }
 
 function getFrontmatterValues(cache: obsidian.CachedMetadata | null | undefined, key: string): string[] {
